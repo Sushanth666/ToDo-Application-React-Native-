@@ -1,0 +1,66 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: ☕ Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 🏗️ Expo Prebuild (Generate Native Android Project)
+        run: npx expo prebuild --platform android
+
+      - name: 🔨 Build Debug APK with Gradle
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToDo-App-Android.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: 🚀 Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0
+          name: "ToDo App v1.0.0 (Android APK)"
+          body: |
+            ## 📱 ToDo App Android Release
+            
+            Download and install the `.apk` file below on any Android phone.
+            
+            ### How to Install on Android:
+            1. Download `app-debug.apk` to your phone.
+            2. Tap the downloaded file.
+            3. If prompted, allow "Install from unknown sources" or "Trust this source".
+            4. Enjoy the ToDo App!
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
